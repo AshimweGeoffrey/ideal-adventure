@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # Traefik Load Balancer
+  traefik-26466:
+    image: traefik:v3.0
+    container_name: traefik-26466
+    command:
+      - --api.dashboard=true
+      - --api.debug=true
+      - --log.level=INFO
+      - --providers.docker=true
+      - --providers.docker.swarmMode=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=portfolio-26466-network
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+      - --certificatesresolvers.letsencrypt.acme.email=student26466@example.com
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --global.sendanonymoususage=false
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-26466-certs:/letsencrypt
+    networks:
+      - portfolio-26466-network
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.traefik-26466.rule=Host(`traefik-26466.local`)
+        - traefik.http.routers.traefik-26466.tls=true
+        - traefik.http.routers.traefik-26466.tls.certresolver=letsencrypt
+        - traefik.http.services.traefik-26466.loadbalancer.server.port=8080
+
+  # MongoDB Database
+  mongo-26466:
+    image: mongo:7.0
+    container_name: mongo-26466
+    environment:
+      - MONGO_INITDB_DATABASE=portfolio_26466
+    volumes:
+      - mongo-26466-data:/data/db
+      - ./deployment/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - portfolio-26466-network
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
