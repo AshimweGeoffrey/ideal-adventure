@@ -1,0 +1,122 @@
+# Traefik Dynamic Configuration for Portfolio 26466
+# This file contains dynamic configuration for middlewares, routes, and services
+
+# HTTP configuration
+http:
+  # Middlewares
+  middlewares:
+    # Security headers middleware
+    security-headers:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - OPTIONS
+          - PUT
+          - POST
+          - DELETE
+        accessControlAllowOriginList:
+          - "https://portfolio-26466.local"
+          - "https://api-26466.local"
+        accessControlMaxAge: 100
+        addVaryHeader: true
+        customRequestHeaders:
+          X-Forwarded-Proto: "https"
+        customResponseHeaders:
+          X-Frame-Options: "SAMEORIGIN"
+          X-XSS-Protection: "1; mode=block"
+          X-Content-Type-Options: "nosniff"
+          Referrer-Policy: "strict-origin-when-cross-origin"
+          Permissions-Policy: "camera=(), microphone=(), geolocation=()"
+
+    # Rate limiting middleware
+    rate-limit:
+      rateLimit:
+        burst: 50
+        average: 10
+
+    # API Authentication middleware
+    api-auth:
+      headers:
+        customRequestHeaders:
+          X-API-Key: "portfolio26466apikey2025"
+
+    # HTTPS redirect middleware
+    https-redirect:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+    # Strip prefix for API routes
+    api-strip-prefix:
+      stripPrefix:
+        prefixes:
+          - "/api"
+
+  # Services (manual service definitions if needed)
+  services:
+    # Backend service with health check
+    backend-26466-service:
+      loadBalancer:
+        servers:
+          - url: "http://backend-26466:5000"
+        healthCheck:
+          path: "/health"
+          interval: 30s
+          timeout: 3s
+
+    # Frontend service
+    frontend-26466-service:
+      loadBalancer:
+        servers:
+          - url: "http://frontend-26466:80"
+        healthCheck:
+          path: "/health"
+          interval: 30s
+          timeout: 3s
+
+  # Routers
+  routers:
+    # API Router
+    api-router:
+      rule: "Host(`api-26466.local`) || PathPrefix(`/api`)"
+      service: backend-26466-service
+      middlewares:
+        - security-headers
+        - rate-limit
+        - api-strip-prefix
+      tls:
+        certResolver: letsencrypt
+
+    # Frontend Router
+    frontend-router:
+      rule: "Host(`portfolio-26466.local`)"
+      service: frontend-26466-service
+      middlewares:
+        - security-headers
+        - rate-limit
+      tls:
+        certResolver: letsencrypt
+
+    # Traefik Dashboard Router (secured)
+    traefik-dashboard:
+      rule: "Host(`traefik-26466.local`)"
+      service: api@internal
+      middlewares:
+        - security-headers
+      tls:
+        certResolver: letsencrypt
+
+# TCP configuration (if needed for direct database access)
+tcp:
+  routers:
+    mongodb-router:
+      rule: "HostSNI(`*`)"
+      service: mongodb-service
+      entryPoints:
+        - mongo
+
+  services:
+    mongodb-service:
+      loadBalancer:
+        servers:
+          - address: "mongo-26466:27017"

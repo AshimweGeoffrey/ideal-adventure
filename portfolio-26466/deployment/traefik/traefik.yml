@@ -1,0 +1,75 @@
+# Traefik Static Configuration for Portfolio 26466
+# This file contains static configuration for Traefik load balancer
+
+# Global configuration
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+# Entrypoints configuration
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+
+  websecure:
+    address: ":443"
+
+  traefik:
+    address: ":8080"
+
+# Providers configuration
+providers:
+  # Docker Swarm provider
+  docker:
+    swarmMode: true
+    exposedByDefault: false
+    network: portfolio-26466-network
+    endpoint: "unix:///var/run/docker.sock"
+    watch: true
+
+  # File provider for additional configurations
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+# API and Dashboard
+api:
+  dashboard: true
+  debug: true
+  insecure: false
+
+# Certificate resolvers for Let's Encrypt
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      tlsChallenge: {}
+      email: student26466@example.com
+      storage: /letsencrypt/acme.json
+      # Use staging server for testing
+      # caServer: https://acme-staging-v02.api.letsencrypt.org/directory
+
+# Logging
+log:
+  level: INFO
+  filePath: "/var/log/traefik/traefik.log"
+
+accessLog:
+  filePath: "/var/log/traefik/access.log"
+
+# Metrics (optional)
+metrics:
+  prometheus:
+    buckets:
+      - 0.1
+      - 0.3
+      - 1.2
+      - 5.0
+
+# Ping endpoint for health checks
+ping: {}

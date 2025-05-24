@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # Traefik Load Balancer
@@ -45,6 +45,8 @@ services:
     container_name: mongo-26466
     environment:
       - MONGO_INITDB_DATABASE=portfolio_26466
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=portfolio26466pass
     volumes:
       - mongo-26466-data:/data/db
       - ./deployment/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
@@ -54,5 +56,89 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.role == manager
+          - node.labels.database == true
+
+  # Backend API Service
+  backend-26466:
+    image: portfolio-backend-26466:latest
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - MONGODB_URI=mongodb://admin:portfolio26466pass@mongo-26466:27017/portfolio_26466?authSource=admin
+      - JWT_SECRET=portfolio26466jwtsecret2025
+      - API_KEY=portfolio26466apikey2025
+    depends_on:
+      - mongo-26466
+    networks:
+      - portfolio-26466-network
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
       restart_policy:
+        condition: on-failure
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.backend-26466.rule=Host(`api-26466.local`) || PathPrefix(`/api`)
+        - traefik.http.routers.backend-26466.tls=true
+        - traefik.http.routers.backend-26466.tls.certresolver=letsencrypt
+        - traefik.http.services.backend-26466.loadbalancer.server.port=5000
+        - traefik.http.middlewares.api-auth.headers.customrequestheaders.X-API-Key=portfolio26466apikey2025
+
+  # Frontend Service
+  frontend-26466:
+    image: portfolio-frontend-26466:latest
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    environment:
+      - REACT_APP_API_URL=https://api-26466.local
+      - REACT_APP_STUDENT_ID=26466
+    depends_on:
+      - backend-26466
+    networks:
+      - portfolio-26466-network
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.frontend-26466.rule=Host(`portfolio-26466.local`)
+        - traefik.http.routers.frontend-26466.tls=true
+        - traefik.http.routers.frontend-26466.tls.certresolver=letsencrypt
+        - traefik.http.services.frontend-26466.loadbalancer.server.port=80
+        - traefik.http.routers.frontend-26466.middlewares=redirect-to-https
+        - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
+
+  # Redis for Session Management
+  redis-26466:
+    image: redis:7.2-alpine
+    container_name: redis-26466
+    command: redis-server --requirepass portfolio26466redis
+    networks:
+      - portfolio-26466-network
+    volumes:
+      - redis-26466-data:/data
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.cache == true
+
+networks:
+  portfolio-26466-network:
+    driver: overlay
+    attachable: true
+
+volumes:
+  traefik-26466-certs:
+  mongo-26466-data:
+  redis-26466-data:

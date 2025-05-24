@@ -1,0 +1,103 @@
+version: "3.8"
+
+services:
+  # MongoDB Database (Local)
+  mongo-26466-local:
+    image: mongo:7.0
+    container_name: mongo-26466-local
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=portfolio_26466
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=portfolio26466pass
+    volumes:
+      - mongo-26466-local-data:/data/db
+      - ./deployment/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - portfolio-local-network
+
+  # Redis for Session Management (Local)
+  redis-26466-local:
+    image: redis:7.2-alpine
+    container_name: redis-26466-local
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass portfolio26466redis
+    volumes:
+      - redis-26466-local-data:/data
+    networks:
+      - portfolio-local-network
+
+  # Backend API Service (Local)
+  backend-26466-local:
+    image: portfolio-backend-26466:latest
+    container_name: backend-26466-local
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=development
+      - PORT=5000
+      - MONGODB_URI=mongodb://admin:portfolio26466pass@mongo-26466-local:27017/portfolio_26466?authSource=admin
+      - JWT_SECRET=portfolio26466jwtsecret2025
+      - API_KEY=portfolio26466apikey2025
+      - REDIS_URL=redis://portfolio26466redis@redis-26466-local:6379
+    depends_on:
+      - mongo-26466-local
+      - redis-26466-local
+    networks:
+      - portfolio-local-network
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  # Frontend Service (Local)
+  frontend-26466-local:
+    image: portfolio-frontend-26466:latest
+    container_name: frontend-26466-local
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000
+      - REACT_APP_STUDENT_ID=26466
+    depends_on:
+      - backend-26466-local
+    networks:
+      - portfolio-local-network
+
+  # Traefik Load Balancer (Local - Simplified)
+  traefik-26466-local:
+    image: traefik:v3.0
+    container_name: traefik-26466-local
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.traefik.address=:8080
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - portfolio-local-network
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.traefik-local.rule=Host(`traefik.localhost`)
+      - traefik.http.services.traefik-local.loadbalancer.server.port=8080
+
+networks:
+  portfolio-local-network:
+    driver: bridge
+
+volumes:
+  mongo-26466-local-data:
+  redis-26466-local-data:

@@ -1,0 +1,67 @@
+version: "3.8"
+
+services:
+  # MongoDB Database (No Authentication)
+  mongodb:
+    image: mongo:6.0
+    container_name: portfolio-mongodb-26466
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: portfolio_26466
+    volumes:
+      - mongodb_data:/data/db
+    ports:
+      - "27018:27017"
+    networks:
+      - portfolio-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Backend API Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: portfolio-backend-26466
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGODB_URI: mongodb://mongodb:27017/portfolio_26466
+      JWT_SECRET: SecureJwtSecret123ForPortfolio26466
+      JWT_REFRESH_SECRET: SecureRefreshSecret456ForPortfolio26466
+      CORS_ORIGIN: http://localhost:3000,http://localhost:3001,http://localhost:8080
+    depends_on:
+      - mongodb
+    ports:
+      - "5000:5000"
+    networks:
+      - portfolio-network
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: portfolio-frontend-26466
+    restart: unless-stopped
+    environment:
+      REACT_APP_API_URL: http://localhost:5000/api
+    depends_on:
+      - backend
+    ports:
+      - "3001:80"
+    networks:
+      - portfolio-network
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  portfolio-network:
+    driver: bridge
+    name: portfolio-network-26466
