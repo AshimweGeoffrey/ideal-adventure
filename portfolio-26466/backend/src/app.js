@@ -15,16 +15,16 @@ const PORT = process.env.PORT || 5000;
 const MONGODB_URI =
   process.env.MONGODB_URI || "mongodb://mongodb:27017/portfolio_26466";
 
-// Security middleware
-app.use(helmet());
+// Security middleware - temporarily disabled for debugging
+// app.use(helmet());
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: "Too many requests from this IP, please try again later.",
-});
-app.use(limiter);
+// Rate limiting - temporarily disabled for debugging
+// const limiter = rateLimit({
+//   windowMs: 15 * 60 * 1000, // 15 minutes
+//   max: 100, // limit each IP to 100 requests per windowMs
+//   message: "Too many requests from this IP, please try again later.",
+// });
+// app.use(limiter);
 
 // CORS configuration
 app.use(
@@ -37,6 +37,12 @@ app.use(
 // Body parser middleware
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
+
+// Debug middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
 
 // Database connection
 mongoose
@@ -67,8 +73,10 @@ app.get("/api/health", (req, res) => {
 });
 
 // Routes
+console.log("Setting up routes...");
 app.use("/api/auth", authRoutes);
 app.use("/api/portfolio", authenticateToken, portfolioRoutes);
+console.log("Routes setup complete");
 
 // Error handling middleware
 app.use(errorHandler);

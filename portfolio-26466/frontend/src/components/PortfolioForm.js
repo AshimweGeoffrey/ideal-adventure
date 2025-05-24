@@ -8,11 +8,12 @@ const PortfolioForm = () => {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
+    category: "web-development",
     technologies: "",
     githubUrl: "",
-    liveUrl: "",
+    projectUrl: "",
     imageUrl: "",
-    isPublic: false,
+    visibility: "public",
   });
   const [loading, setLoading] = useState(false);
   const { id } = useParams();
@@ -60,11 +61,17 @@ const PortfolioForm = () => {
 
     try {
       const portfolioData = {
-        ...formData,
+        title: formData.title,
+        description: formData.description,
+        category: formData.category,
         technologies: formData.technologies
           .split(",")
           .map((tech) => tech.trim())
           .filter((tech) => tech),
+        githubUrl: formData.githubUrl || '',
+        projectUrl: formData.projectUrl || '',
+        imageUrl: formData.imageUrl || '',
+        visibility: formData.visibility
       };
 
       if (isEdit) {

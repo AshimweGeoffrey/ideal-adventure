@@ -1,7 +1,7 @@
-const express = require('express');
-const Joi = require('joi');
-const User = require('../models/User');
-const { generateToken, authenticateToken } = require('../middleware/auth');
+const express = require("express");
+const Joi = require("joi");
+const User = require("../models/User");
+const { generateToken, authenticateToken } = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -9,16 +9,16 @@ const router = express.Router();
 const registerSchema = Joi.object({
   username: Joi.string().min(3).max(30).required(),
   email: Joi.string().email().required(),
-  password: Joi.string().min(6).required()
+  password: Joi.string().min(6).required(),
 });
 
 const loginSchema = Joi.object({
   email: Joi.string().email().required(),
-  password: Joi.string().required()
+  password: Joi.string().required(),
 });
 
 // Register endpoint
-router.post('/register', async (req, res) => {
+router.post("/register", async (req, res) => {
   try {
     const { error } = registerSchema.validate(req.body);
     if (error) {
@@ -29,12 +29,12 @@ router.post('/register', async (req, res) => {
 
     // Check if user already exists
     const existingUser = await User.findOne({
-      $or: [{ email }, { username }]
+      $or: [{ email }, { username }],
     });
 
     if (existingUser) {
-      return res.status(409).json({ 
-        message: 'User already exists with this email or username' 
+      return res.status(409).json({
+        message: "User already exists with this email or username",
       });
     }
 
@@ -47,18 +47,17 @@ router.post('/register', async (req, res) => {
     delete userResponse.password;
 
     res.status(201).json({
-      message: 'User registered successfully',
-      user: userResponse
+      message: "User registered successfully",
+      user: userResponse,
     });
-
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ message: 'Registration failed' });
+    console.error("Registration error:", error);
+    res.status(500).json({ message: "Registration failed" });
   }
 });
 
 // Login endpoint
-router.post('/login', async (req, res) => {
+router.post("/login", async (req, res) => {
   try {
     const { error } = loginSchema.validate(req.body);
     if (error) {
@@ -67,16 +66,20 @@ router.post('/login', async (req, res) => {
 
     const { email, password } = req.body;
 
-    // Find user and include password for comparison
-    const user = await User.findOne({ email, isActive: true });
+    // Find user (convert email to lowercase to match schema)
+    const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    if (!user.isActive) {
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
     // Check password
     const isValidPassword = await user.comparePassword(password);
     if (!isValidPassword) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
     // Update last login
@@ -91,63 +94,61 @@ router.post('/login', async (req, res) => {
     delete userResponse.password;
 
     res.json({
-      message: 'Login successful',
+      message: "Login successful",
       token,
-      user: userResponse
+      user: userResponse,
     });
-
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Login failed' });
+    console.error("Login error:", error);
+    res.status(500).json({ message: "Login failed" });
   }
 });
 
 // Generate API key endpoint
-router.post('/generate-api-key', authenticateToken, async (req, res) => {
+router.post("/generate-api-key", authenticateToken, async (req, res) => {
   try {
     const user = req.user;
     const apiKey = user.generateApiKey();
     await user.save();
 
     res.json({
-      message: 'API key generated successfully',
+      message: "API key generated successfully",
       apiKey,
-      note: 'Store this API key securely. It will not be shown again.'
+      note: "Store this API key securely. It will not be shown again.",
     });
-
   } catch (error) {
-    console.error('API key generation error:', error);
-    res.status(500).json({ message: 'Failed to generate API key' });
+    console.error("API key generation error:", error);
+    res.status(500).json({ message: "Failed to generate API key" });
   }
 });
 
 // Get user profile
-router.get('/profile', authenticateToken, async (req, res) => {
+router.get("/profile", authenticateToken, async (req, res) => {
   try {
     const userResponse = req.user.toObject();
     delete userResponse.password;
-    
+
     res.json({
-      user: userResponse
+      user: userResponse,
     });
   } catch (error) {
-    console.error('Profile fetch error:', error);
-    res.status(500).json({ message: 'Failed to fetch profile' });
+    console.error("Profile fetch error:", error);
+    res.status(500).json({ message: "Failed to fetch profile" });
   }
 });
 
 // Revoke API key
-router.delete('/revoke-api-key', authenticateToken, async (req, res) => {
+router.delete("/revoke-api-key", authenticateToken, async (req, res) => {
   try {
     const user = req.user;
     user.apiKey = undefined;
     user.apiKeyActive = false;
     await user.save();
 
-    res.json({ message: 'API key revoked successfully' });
+    res.json({ message: "API key revoked successfully" });
   } catch (error) {
-    console.error('API key revocation error:', error);
-    res.status(500).json({ message: 'Failed to revoke API key' });
+    console.error("API key revocation error:", error);
+    res.status(500).json({ message: "Failed to revoke API key" });
   }
 });
 
